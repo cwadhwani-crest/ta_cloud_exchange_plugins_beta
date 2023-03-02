@@ -521,7 +521,7 @@ class STIXTAXIIPlugin(PluginBase):
         else:
             start_time = pytz.utc.localize(last_run_at)
 
-        start_time = start_time - timedelta(seconds=delay_time)
+        start_time = start_time - timedelta(minutes=delay_time)
         self.logger.info(f"Debug stix: here is the new start time: {start_time}")
         if configuration["version"] == "1":
             indicators = self.pull_1x(configuration, start_time)
@@ -726,6 +726,25 @@ class STIXTAXIIPlugin(PluginBase):
             return ValidationResult(
                 success=False,
                 message="Invalid Number of days provided.",
+            )
+            
+        try:
+            if (
+                "delay" not in configuration
+                or not isinstance(configuration["delay"], int)
+                or not 0 <= int(configuration["minimum_severity"]) <= 1440
+            ):
+                self.logger.error(
+                    f"Plugin STIX/TAXII: Validation error occured Error: Invalid Look Back provided."
+                )
+                return ValidationResult(
+                    success=False,
+                    message="Invalid Look Back value provided.",
+                )
+        except ValueError:
+            return ValidationResult(
+                success=False,
+                message="Invalid Minimum Severity value provided.",
             )
         
         validate_collections = self._validate_collections(configuration)

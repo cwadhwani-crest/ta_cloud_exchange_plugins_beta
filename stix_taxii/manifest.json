@@ -66,10 +66,10 @@
       "description": "Number of days to pull the data for the initial run."
     },
     {
-      "label": "Delay",
+      "label": "Look Back (in minutes)",
       "key": "delay",
       "type": "number",
-      "mandatory": true,
+      "mandatory": false,
       "default": 0,
       "description": "Number of seconds to backdate the start time for pulling the data."
     },
