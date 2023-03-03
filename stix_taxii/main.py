@@ -511,7 +511,6 @@ class STIXTAXIIPlugin(PluginBase):
         return indicators
     
     def _pull(self, configuration, last_run_at):
-        
         delay_time = int(configuration["delay"])
         if not last_run_at:
             start_time = pytz.utc.localize(
@@ -522,7 +521,7 @@ class STIXTAXIIPlugin(PluginBase):
             start_time = pytz.utc.localize(last_run_at)
 
         start_time = start_time - timedelta(minutes=delay_time)
-        self.logger.info(f"Debug stix: here is the new start time: {start_time}")
+        self.logger.info(f"Plugin STIX/TAXII: Start time for the pull cycle - {start_time}")
         if configuration["version"] == "1":
             indicators = self.pull_1x(configuration, start_time)
         elif configuration["version"] == "2.0":
@@ -727,7 +726,7 @@ class STIXTAXIIPlugin(PluginBase):
                 success=False,
                 message="Invalid Number of days provided.",
             )
-            
+
         try:
             if (
                 "delay" not in configuration
@@ -744,9 +743,9 @@ class STIXTAXIIPlugin(PluginBase):
         except ValueError:
             return ValidationResult(
                 success=False,
-                message="Invalid Minimum Severity value provided.",
+                message="Invalid Look Back value provided.",
             )
-        
+
         validate_collections = self._validate_collections(configuration)
         validate_uname_pass = self._validate_uname_pass(configuration)
         

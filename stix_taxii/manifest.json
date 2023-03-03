@@ -71,7 +71,7 @@
       "type": "number",
       "mandatory": false,
       "default": 0,
-      "description": "Number of seconds to backdate the start time for pulling the data."
+      "description": "Number of minutes to backdate the start time for pulling the data. Valid value is anything between 0 to 1440"
     },
     {
       "label": "Type of Threat data to pull",
