@@ -521,6 +521,7 @@ class STIXTAXIIPlugin(PluginBase):
             start_time = pytz.utc.localize(last_run_at)
 
         start_time = start_time - timedelta(minutes=delay_time)
+
         self.logger.info(f"Plugin STIX/TAXII: Start time for the pull cycle - {start_time}")
         if configuration["version"] == "1":
             indicators = self.pull_1x(configuration, start_time)
