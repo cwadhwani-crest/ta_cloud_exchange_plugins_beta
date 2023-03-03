@@ -1,7 +1,7 @@
 {
   "name": "STIX/TAXII Plugin",
   "id": "stix_taxii",
-  "version": "2.0.4",
+  "version": "2.1.0-beta",
   "description": "The STIX/TAXII plugin polls TAXII feeds and extracts observables from them. This plugin does not support sharing of indicators to TAXII feeds.",
   "patch_supported": false,
   "push_supported": false,
@@ -66,12 +66,12 @@
       "description": "Number of days to pull the data for the initial run."
     },
     {
-      "label": "Delay",
+      "label": "Look Back (in minutes)",
       "key": "delay",
       "type": "number",
-      "mandatory": true,
+      "mandatory": false,
       "default": 0,
-      "description": "Number of seconds to backdate the start time for pulling the data."
+      "description": "Number of minutes to backdate the start time for pulling the data. Valid value is anything between 0 to 1440"
     },
     {
       "label": "Type of Threat data to pull",
