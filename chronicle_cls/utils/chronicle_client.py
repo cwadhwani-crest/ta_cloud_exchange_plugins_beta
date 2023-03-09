@@ -74,9 +74,10 @@ class ChronicleClient:
         :transformed_data : The transformed data to be ingested.
         """
         try:
+            self.logger.info("Debug Chronicle: Trying to ingest the logs")
             if self.configuration.get("region", "") == "custom":
-                BASE_URL = self.configuration.get("custom_region", "")
-            else:
+                BASE_URL = self.configuration.get("custom_region", "")               
+            else:   
                 BASE_URL = DEFAULT_URL[self.configuration.get("region", "usa")]
             url = f"{BASE_URL}/v2/udmevents:batchCreate"
             payload = {
@@ -89,11 +90,14 @@ class ChronicleClient:
                 url,
                 json=payload,
             )
-
+            
             response = response.json()
-
+            
             if response == {}:
                 return
+
+            self.logger.info(f"Debug Chronicle: Response : {response}")
+            self.logger.info(f"Debug Chronicle: Transformed Data : {transformed_data}")
 
             status_code = response.get("error").get("code")
             message = response.get("error").get("message")
