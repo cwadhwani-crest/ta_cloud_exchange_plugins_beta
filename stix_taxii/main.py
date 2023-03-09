@@ -542,6 +542,7 @@ class STIXTAXIIPlugin(PluginBase):
         self.logger.info(
             f"Plugin STIX/TAXII: Start time for the pull cycle - {start_time} (UTC)"
         )
+
         if configuration["version"] == "1":
             indicators = self.pull_1x(configuration, start_time)
         elif configuration["version"] == "2.0":

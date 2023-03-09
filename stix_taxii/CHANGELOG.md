@@ -1,4 +1,4 @@
-# 2.1.0
+# 2.1.0-beta
 ## Added
 - Added new configuration parameter named Look Back. This can be used to backdate the start time for pulling the data.
 
