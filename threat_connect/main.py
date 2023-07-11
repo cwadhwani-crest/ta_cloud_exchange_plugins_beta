@@ -115,27 +115,32 @@ class ThreatConnectPlugin(PluginBase):
         elif resp.status_code == 401:
             self.logger.error(
                 "Plugin: ThreatConnect, Received exit code 401, "
-                "Authentication Error."
+                "Authentication Error.",
+                details=resp.text
             )
         elif resp.status_code == 403:
             self.logger.error(
                 "Plugin: ThreatConnect, "
-                "Received exit code 403, Forbidden User."
+                "Received exit code 403, Forbidden User.",
+                details=resp.text
             )
         elif resp.status_code >= 400 and resp.status_code < 500:
             self.logger.error(
                 f"Plugin: ThreatConnect, "
-                f"Received exit code {resp.status_code}, HTTP client Error."
+                f"Received exit code {resp.status_code}, HTTP client Error.",
+                details=resp.text
             )
         elif resp.status_code >= 500 and resp.status_code < 600:
             self.logger.error(
                 f"Plugin: ThreatConnect, "
-                f"Received exit code {resp.status_code}, HTTP server Error."
+                f"Received exit code {resp.status_code}, HTTP server Error.",
+                details=resp.text
             )
         else:
             self.logger.error(
                 f"Plugin: ThreatConnect, "
-                f"Received exit code {resp.status_code}, HTTP Error."
+                f"Received exit code {resp.status_code}, HTTP Error.",
+                details=resp.text
             )
         resp.raise_for_status()
 
@@ -337,7 +342,7 @@ class ThreatConnectPlugin(PluginBase):
                         url_ioc += 1
             else:
                 skipped += 1
-                
+
         self.logger.info(f"Debug Plugin: Threatconnect, Stats - Total File IOCs: {file}, MD5: {md5}, SHA256: {sha256}, URL: {url_ioc}, skipped: {skipped}")
 
     def pull_data_from_threatconnect(
