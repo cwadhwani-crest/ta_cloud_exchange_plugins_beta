@@ -1,6 +1,7 @@
 # 1.0.3 - debug
 ## Added
 - Added debug logs in pull implementation of plugin.
+- Added SHA256, MD5 and URL multichoice option to "Type of Threat data to pull" configuration parameter. 
 
 # 1.0.3
 ## Fixed

@@ -68,24 +68,28 @@
         {
             "label": "Type of Threat data to pull",
             "key": "threat_data_type",
-            "type": "choice",
+            "type": "multichoice",
             "choices": [
                 {
-                    "key": "Both",
-                    "value": "Both"
+                    "key": "Sha256",
+                    "value": "sha256"
                 },
                 {
-                    "key": "Malware",
-                    "value": "Malware"
+                    "key": "MD5",
+                    "value": "md5"
                 },
                 {
                     "key": "URL",
-                    "value": "URL"
+                    "value": "url"
                 }
             ],
-            "default": "Both",
+            "default": [
+                "sha256",
+                "md5",
+                "url"
+            ],
             "mandatory": true,
-            "description": "Type of Threat data to pull. Allowed values are Both, Malware and URL(For Malsite data)."
+            "description": "Type of Threat data to pull. Allowed values are Sha256, MD5 and URL(For Malsite data)."
         },
         {
             "label": "Initial Range (in days)",

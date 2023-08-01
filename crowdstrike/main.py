@@ -227,17 +227,25 @@ class CrowdStrikePlugin(PluginBase):
             List[cte.models.Indicators]: List of indicator objects received from the CrowdStrike platform.
         """
         # Indicator endpoint, this will return detailed information about Indicator.
+        threat_type = self.configuration.get("threat_data_type", [])
+        ioc_types = []
+        for ioc_type in threat_type:
+            if ioc_type == "sha256":
+                ioc_types.extend(["hash_sha256", "sha256"])
+            elif ioc_type == "md5":
+                ioc_types.extend(["hash_md5", "md5"])
+            elif ioc_type == "url":
+                ioc_types.append("domain")
+
         self.logger.info(
-            f"{self.log_prefix}: Getting indicators details from their ids."
+            f"{self.log_prefix}: Fetching indicator details from detection ids {ioc_ids}."
         )
         indicator_endpoint = f"{self.configuration['base_url']}/detects/entities/summaries/GET/v1"
         indicator_list = []
         json_payload = {}
         skip_count = 0
+
         for ioc_chunks in self.divide_in_chunks(ioc_ids, 1000):
-            self.logger.info(
-                f"{self.log_prefix}: Getting details for batch [{ioc_chunks}]"
-            )
             json_payload["ids"] = list(ioc_chunks)
             headers = self.reload_auth_token(headers)
             ioc_resp = requests.post(
@@ -248,10 +256,7 @@ class CrowdStrikePlugin(PluginBase):
                 proxies=self.proxy,
                 timeout=60,
             )
-            self.logger.info(
-                f"{self.log_prefix}: Received exit code {ioc_resp.status_code}"
-                " while pulling the indicator details from CrowdStrike."
-            )
+
             resp_json = self.handle_error(ioc_resp)
 
             if resp_json.get("errors"):
@@ -261,16 +266,12 @@ class CrowdStrikePlugin(PluginBase):
                 self.notifier.error(message=err_msg)
                 self.logger.error(message=err_msg, details=errors)
             indicators_json_list = resp_json.get("resources", [])
-            self.logger.info(
-                f"{self.log_prefix}: Successfully fetched details for {len(indicators_json_list)} indicators."
-            )
+
             for indicator_json in indicators_json_list:
-                skip_count, sha256, md5, domain, iocs = 0, 0, 0, 0, 0
+                skip_count, sha256, md5, domain = 0, 0, 0, 0
                 behaviors = indicator_json.get("behaviors", [])
                 detection_id = indicator_json.get("detection_id")
-                self.logger.info(
-                    f'{self.log_prefix}: Fetching details from threat data with detection ID "{detection_id}"'
-                )
+
                 if behaviors:
                     for behavior_info in behaviors:
                         if (
@@ -278,19 +279,15 @@ class CrowdStrikePlugin(PluginBase):
                             and len(behavior_info.get("ioc_type", "")) > 0
                             and behavior_info.get("ioc_type")
                             in CROWDSTRIKE_TO_INTERNAL_TYPE
+                            and behavior_info.get("ioc_type") in ioc_types
                         ):
                             ioc_type = CROWDSTRIKE_TO_INTERNAL_TYPE.get(
                                 behavior_info.get("ioc_type")
                             )
-                            if ioc_type == IndicatorType.SHA256:
-                                sha256 += 1
-                            elif ioc_type == IndicatorType.MD5:
-                                md5 += 1
-                            elif ioc_type == IndicatorType.URL:
-                                domain += 1
+                            ioc_value = behavior_info.get("ioc_value")
                             indicator_list.append(
                                 Indicator(
-                                    value=behavior_info.get("ioc_value"),
+                                    value=ioc_value,
                                     type=ioc_type,
                                     comments=behavior_info.get(
                                         "ioc_description", ""
@@ -308,33 +305,43 @@ class CrowdStrikePlugin(PluginBase):
                                     ),
                                 )
                             )
+                            if ioc_type == IndicatorType.SHA256:
+                                sha256 += 1
+                            elif ioc_type == IndicatorType.MD5:
+                                md5 += 1
+                            elif ioc_type == IndicatorType.URL:
+                                domain += 1
                         else:
                             skip_count += 1
-                            threat_type = behavior_info.get("ioc_type")
-                            threat_value = behavior_info.get("ioc_value")
-                            self.logger.error(
-                                message=f'{self.log_prefix}: Skipped indicator with threat type "{threat_type}" and value "{threat_value}".',
-                                details=str(behavior_info),
-                            )
+
+                total_iocs = sha256 + md5 + domain
                 self.logger.info(
-                    "{}: Successfully fetched SHA256 {} filehash(es), MD5 {} "
-                    "filehash(es) and {} domain(s) so in total {} indicators "
-                    'were fetched from detection with id "{}".'.format(
+                    "{}: Successfully fetched {} indicators from detection id:"
+                    " {}. Indicators: SHA256 {}, MD5 {}, URL {}".format(
                         self.log_prefix,
+                        total_iocs,
+                        detection_id,
                         sha256,
                         md5,
                         domain,
-                        sha256 + md5 + domain,
-                        detection_id,
                     )
                 )
 
         if skip_count > 0:
             self.logger.warn(
-                f"{self.log_prefix}: Skipping {skip_count} record(s) as IOC value and/or IOC type not compatible. "
+                "{}: Skipping {} record(s) as IOC value might be empty string"
+                ' or the IOC type does not match the "Type of Threat data to'
+                ' pull" configuration parameter.'.format(
+                    self.log_prefix, skip_count
+                )
             )
         self.logger.info(
-            f"{self.log_prefix}: Successfully pulled {len(indicator_list)} indicators from CrowdStrike."
+            "{}: Successfully pulled {} indicators from CrowdStrike."
+            " Indicators: {}".format(
+                self.log_prefix,
+                len(indicator_list),
+                [ioc.value for ioc in indicator_list],
+            )
         )
         return indicator_list
 
@@ -372,19 +379,14 @@ class CrowdStrikePlugin(PluginBase):
             ioc_resp_json = self.handle_error(all_ioc_resp)
             errors = ioc_resp_json.get("errors")
             if errors:
-                err_msg = errors[0].get("message", "")
-                self.notifier.error(
-                    "Plugin: CrowdStrike Unable to Fetch Indicators, "
-                    f"Error: {err_msg}"
+                api_err_msg = errors[0].get("message", "")
+                err_msg = (
+                    f"{self.log_prefix}: Unable to Fetch Indicators, "
+                    f"Error: {api_err_msg}"
                 )
-                self.logger.error(
-                    "Plugin: CrowdStrike Unable to Fetch Indicators, "
-                    f"Error: {err_msg}"
-                )
-                raise requests.HTTPError(
-                    f"Plugin: CrowdStrike Unable to Fetch Indicators, "
-                    f"Error: {err_msg}"
-                )
+                self.notifier.error(f"{self.log_prefix}: {err_msg}")
+                self.logger.error(f"{self.log_prefix}: {err_msg}")
+                raise requests.HTTPError(f"{self.log_prefix}: {err_msg}")
             meta = ioc_resp_json.get("meta")
             after = meta.get("pagination", {}).get("after")
             query_params["after"] = after
@@ -436,17 +438,16 @@ class CrowdStrikePlugin(PluginBase):
         )
         query_params = {}
         ioc_types = []
-        if threat_type == "Both":
-            ioc_types = ["hash_md5", "md5", "hash_sha256", "sha256", "domain"]
-        elif threat_type == "Malware":
-            ioc_types = [
-                "hash_md5",
-                "md5",
-                "hash_sha256",
-                "sha256",
-            ]
-        elif threat_type == "URL":
-            ioc_types = ["domain"]
+        for ioc_type in threat_type:
+            if ioc_type == "sha256":
+                ioc_types.extend(["hash_sha256", "sha256"])
+            elif ioc_type == "md5":
+                ioc_types.extend(["hash_md5", "md5"])
+            elif ioc_type == "url":
+                ioc_types.append("domain")
+        self.logger.info(
+            f"{self.log_prefix}: Types of threat iocs to pull {ioc_types}"
+        )
         ioc_ids = []
         for ioc_type in ioc_types:
             offset = 0
@@ -455,7 +456,6 @@ class CrowdStrikePlugin(PluginBase):
                     f"last_behavior:>'{last_run_time}'"
                     f"+behaviors.ioc_type:'{ioc_type}'"
                 )
-
                 query_params["limit"] = PAGE_SIZE
                 query_params["filter"] = filter_query
                 query_params["offset"] = offset
@@ -474,12 +474,6 @@ class CrowdStrikePlugin(PluginBase):
                     proxies=self.proxy,
                     timeout=60,
                 )
-                self.logger.info(
-                    "{}: Received exit code {} while pulling  ids of {} threat"
-                    " type from CrowdStrike.".format(
-                        self.log_prefix, all_ioc_resp.status_code, threat_type
-                    )
-                )
                 ioc_resp_json = self.handle_error(all_ioc_resp)
                 errors = ioc_resp_json.get("errors")
                 if errors:
@@ -495,19 +489,18 @@ class CrowdStrikePlugin(PluginBase):
                     raise requests.HTTPError(err_msg)
                 resources = ioc_resp_json.get("resources", [])
                 self.logger.info(
-                    "{}: Successfully fetched {} ids for {} threat "
-                    "type.".format(
-                        self.log_prefix, len(resources), threat_type
-                    )
+                    "{}: Successfully fetched {} detection ids of {} threat "
+                    "type.".format(self.log_prefix, len(resources), ioc_type)
                 )
                 offset += PAGE_SIZE
                 ioc_ids.extend(resources)
-                if len(resources) < PAGE_SIZE:
+                if len(resources) < PAGE_SIZE or offset >= 10000:
                     break
+
         self.logger.info(
-            "{}: Successfully fetched {} IOC Ids of type {} "
-            "from CrowdStrike.".format(
-                self.log_prefix, len(ioc_ids), ioc_types
+            "{}: Successfully fetched {} detection ids for type {} "
+            "from CrowdStrike. Detection ids: {}".format(
+                self.log_prefix, len(ioc_ids), ioc_types, ioc_ids
             )
         )
         return ioc_ids
@@ -901,21 +894,35 @@ class CrowdStrikePlugin(PluginBase):
                 message="Invalid value for 'Enable Polling' provided. Allowed values are 'Yes', or 'No'.",
             )
 
-        if "threat_data_type" not in data or data["threat_data_type"] not in [
-            "Both",
-            "Malware",
-            "URL",
-        ]:
+        threat_data_type = data.get("threat_data_type")
+
+        if "threat_data_type" not in data or not threat_data_type:
+            err_msg = (
+                "'Type of Threat data to pull' is a required configuration "
+                "parameter. Allowed values are All, SHA256, MD5 and URL."
+            )
+            self.logger.error(f"Plugin: CrowdStrike {err_msg}")
+            return ValidationResult(
+                success=False,
+                message=err_msg,
+            )
+
+        if not (
+            all(
+                threat_type in ["sha256", "md5", "url"]
+                for threat_type in threat_data_type
+            )
+        ):
+            err_msg = (
+                "Invalid Type of Threat data to pull value provided."
+                " Allowed values are 'SHA256','MD5', and 'URL'."
+            )
             self.logger.error(
-                "Plugin: CrowdStrike Invalid value for 'Type of Threat data to pull' provided. "
-                "Allowed values are Both, Malware or URL."
+                message=f"{self.log_prefix}: {err_msg}",
             )
             return ValidationResult(
                 success=False,
-                message=(
-                    "Invalid value for 'Type of Threat data to pull' provided. "
-                    "Allowed values are 'Both', 'Malware' or 'URL'."
-                ),
+                message=err_msg,
             )
         if (
             "days" not in data
@@ -978,7 +985,7 @@ class CrowdStrikePlugin(PluginBase):
             self.get_auth_json(client_id, client_secret, base_url)
             return ValidationResult(
                 success=True,
-                message="Validation successfull for CrowdStrike Plugin",
+                message="Validation successful for CrowdStrike Plugin",
             )
         except requests.exceptions.ProxyError:
             self.logger.error(
