@@ -33,6 +33,11 @@ def as_pages(plugin, func, next=0, per_request=0, *args, **kwargs):
         envelope = func(plugin=plugin, limit=per_request, next=next, *args, **kwargs)
     else:
         envelope = func(plugin=plugin, limit=per_request, *args, **kwargs)
+        
+    if plugin and plugin.logger:
+        plugin.logger.debug(
+            f"{plugin.log_prefix}: Response next value: {envelope.get('next')}"
+        )
     yield envelope
 
     total_obtained = _grab_total_items_from_resource(envelope)
@@ -43,6 +48,8 @@ def as_pages(plugin, func, next=0, per_request=0, *args, **kwargs):
     # The while loop will not be executed if the response is received in full.
     while envelope.get("more", False):
         envelope = func(plugin=plugin, limit=per_request, next=envelope.get("next", ""), *args, **kwargs)
+        if plugin and plugin.logger:
+            f"{plugin.log_prefix}: Response next value: {envelope.get('next')}"
         yield envelope
 
 
