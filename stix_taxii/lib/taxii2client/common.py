@@ -355,14 +355,21 @@ class _HTTPConnection(object):
         if "Accept" not in merged_headers:
             merged_headers["Accept"] = media_type
         accept = merged_headers["Accept"]
+        
+        for i in range(3):
 
-        resp = self.session.get(url, headers=merged_headers, params=params)
-        if plugin and plugin.logger:
-            plugin.logger.debug(
-                f"{plugin.log_prefix}: Response details for url {url} - "
-                f"Status code: {resp.status_code} - "
-                f"Headers: {resp.headers}"
-            )
+            resp = self.session.get(url, headers=merged_headers, params=params)
+            if plugin and plugin.logger:
+                plugin.logger.debug(
+                    f"{plugin.log_prefix}: [Retry count: {i + 1}] Response details for url {url} - "
+                    f"Status code: {resp.status_code} - "
+                    f"Headers: {resp.headers}"
+                )
+                
+            if 500 < resp.status_code < 600:
+                continue
+            else:
+                break
 
         try:
             resp.raise_for_status()
