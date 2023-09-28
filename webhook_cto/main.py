@@ -30,7 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-"""ServiceNow ITSM plugin."""
+"""Webhook CTO plugin."""
 
 
 from typing import List, Dict
@@ -75,7 +75,7 @@ class WebhookPlugin(PluginBase):
         *args,
         **kwargs,
     ):
-        """Initialize ServiceNow plugin class."""
+        """Initialize Webhook plugin class."""
         super().__init__(
             name,
             *args,
@@ -134,7 +134,7 @@ class WebhookPlugin(PluginBase):
         return headers
 
     def create_task(self, alert, mappings, queue):
-        """Create an incident on ServiceNow."""
+        """Send notification to the webhook."""
 
         webhook_url = self.configuration.get("params", {}).get("webhook_url", "").strip()
         json_object_str = mappings.get("json_object", "")

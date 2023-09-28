@@ -1,1 +1,1 @@
-"""ServiceNow ITSM plugin."""
+"""Webhook CTO plugin."""
