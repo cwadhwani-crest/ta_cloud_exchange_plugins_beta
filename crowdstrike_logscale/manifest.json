@@ -1,7 +1,7 @@
 {
     "name": "CrowdStrike LogScale",
     "id": "crowdstrike_logscale",
-    "version": "1.0.0-Debug",
+    "version": "1.1.0-debug",
     "mapping": "CrowdStrike LogScale Default Mappings",
     "description": "This plugin is used to deliver alerts, events, and webtx data. This plugin only supports sharing raw **JSON** data to CrowdStrike LogScale HTTP Event Collector.",
     "netskope": false,

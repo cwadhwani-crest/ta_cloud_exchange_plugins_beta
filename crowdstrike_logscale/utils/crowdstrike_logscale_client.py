@@ -96,6 +96,7 @@ class CrowdStrikeLogScaleClient:
             "Authorization": f"Bearer {self.configuration.get('token')}",
             "Content-Type": "application/json",
         }
+        headers = _add_user_agent(headers)
         self.logger.debug(
             f"{self.log_prefix}: [{self.data_type}] [{self.subtype}] "
             f"Ingesting {len(payload)} logs in the batch of 500 to "
@@ -108,18 +109,21 @@ class CrowdStrikeLogScaleClient:
             start = time.time()
             for chunk in self.chunks(payload):
                 chunk_size = len(chunk)
+                payload_str = ""
+                payload_list = [json.dumps({"event": single_event}) for single_event in chunk]
+                payload_str = "\n".join(payload_list)
                 batch_start = time.time()
                 self.logger.debug(
                     f"{self.log_prefix}: [{self.data_type}] [{self.subtype}]"
                     f" Ingesting {chunk_size} log(s) to {self.plugin_name}. "
-                    f"Length of User-Agent. {len(headers.get('User-Agent', ''))}."
+                    f"Length of User-Agent: {len(headers.get('User-Agent', ''))}."
                     f"Proxy: {self.proxy}. UUID: {uid}"
                 )
                 self._api_helper(
                     lambda: requests.post(
                         url=uri,
-                        headers=_add_user_agent(headers),
-                        data=json.dumps({"event": chunk}),
+                        headers=headers,
+                        data=payload_str,
                         proxies=self.proxy,
                     ),
                     (
@@ -128,7 +132,6 @@ class CrowdStrikeLogScaleClient:
                     ),
                 )
                 batch_end = time.time()
-
                 count += chunk_size
                 self.logger.debug(
                     "{}: [{}] [{}] Successfully pushed {} record(s) of size {} KB to {} "
@@ -227,9 +230,14 @@ class CrowdStrikeLogScaleClient:
         try:
             for retry_counter in range(MAX_RETRY_COUNT):
                 response = request()
-                self.logger.debug(
+                debug_log = (
                     f"{self.log_prefix}: Received status "
                     f"code {response.status_code} while {logger_msg}."
+                )
+                if "ingesting data" in logger_msg:
+                    debug_log += f" Response body: {response.text}"
+                self.logger.debug(
+                    debug_log
                 )
                 if response.status_code == 429 or (
                     response.status_code >= 500 and response.status_code < 600
