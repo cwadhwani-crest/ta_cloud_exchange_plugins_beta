@@ -131,7 +131,7 @@ class CrowdStrikeLogScaleClient:
 
                 count += chunk_size
                 self.logger.debug(
-                    "{}: [{}] [{}] Successfully pushed {} record(s) of size {} bytes to {} "
+                    "{}: [{}] [{}] Successfully pushed {} record(s) of size {} KB to {} "
                     "in current page. Total {} record(s) pushed so far "
                     "in the current Push cycle. Time taken to ingest {} "
                     "record(s): {} seconds. UUID: {}".format(
@@ -139,7 +139,7 @@ class CrowdStrikeLogScaleClient:
                         self.data_type,
                         self.subtype,
                         chunk_size,
-                        sys.getsizeof(chunk),
+                        round(len(json.dumps(chunk))/1024, 2),
                         PLATFORM_NAME,
                         count,
                         chunk_size,
